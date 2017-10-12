@@ -6,7 +6,7 @@
 	public class Window {
 
 		Vector2<int> size;
-		IntPtr ptr;
+		public IntPtr ptr;
 
 		public Window(int width, int height) {
 			size = new Vector2<int>(width, height);
@@ -21,9 +21,13 @@
 		}
 
 		public IntPtr GetVulkanSurface(IntPtr vkInstance) {
-			IntPtr res;
-			SDL.SDL_Vulkan_CreateSurface(ptr, vkInstance, out res);
+			SDL.SDL_Vulkan_CreateSurface(ptr, vkInstance, out IntPtr res);
 			return res;
 		}
+
+		public void Destroy() {
+			SDL.SDL_DestroyWindow(ptr);
+		}
+
 	}
 }
