@@ -1,0 +1,5 @@
+#RiderC#
+.idea/
+*.*.iml
+
+*/obj/*
