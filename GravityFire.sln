@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.26823.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GravityFire", "GravityFire\GravityFire.csproj", "{F80ABDB9-F4E1-45D1-9155-2BF878C501F1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Walker", "..\..\..\Game\Garden\Walker\Walker.csproj", "{D542095B-9628-4B25-A4F6-D9B846EB2820}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Walker", "Walker\Walker.csproj", "{D542095B-9628-4B25-A4F6-D9B846EB2820}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

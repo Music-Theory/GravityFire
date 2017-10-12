@@ -1,0 +1,3 @@
+[submodule "Walker"]
+	path = Walker
+	url = https://github.com/Music-Theory/Walker.git
