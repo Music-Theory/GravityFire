@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GravityFire", "GravityFire\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Walker", "Walker\Walker.csproj", "{D542095B-9628-4B25-A4F6-D9B846EB2820}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SDL2-CS.Core", "SDL2-CS\SDL2-CS.Core.csproj", "{39437D08-8F7E-49AE-BEF4-C86768E76474}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -31,6 +33,14 @@ Global
 		{D542095B-9628-4B25-A4F6-D9B846EB2820}.Release|x64.Build.0 = Release|Any CPU
 		{D542095B-9628-4B25-A4F6-D9B846EB2820}.Release|x86.ActiveCfg = Release|Any CPU
 		{D542095B-9628-4B25-A4F6-D9B846EB2820}.Release|x86.Build.0 = Release|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Debug|x64.Build.0 = Debug|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Debug|x86.Build.0 = Debug|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Release|x64.ActiveCfg = Release|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Release|x64.Build.0 = Release|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Release|x86.ActiveCfg = Release|Any CPU
+		{39437D08-8F7E-49AE-BEF4-C86768E76474}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -5,19 +5,19 @@
 
 	public class Window {
 
-		Vector2<int> size;
+		Vector2<uint> size;
 		public IntPtr ptr;
 
-		public Window(int width, int height) {
-			size = new Vector2<int>(width, height);
+		public Window(uint width, uint height) {
+			size = new Vector2<uint>(width, height);
 		}
 
-		public Window(Vector2<int> size) {
+		public Window(Vector2<uint> size) {
 			this.size = size;
 		}
 
 		public void Init() {
-			ptr = SDL.SDL_CreateWindow("Gravity Fire", 50, 50, size.X, size.Y, SDL.SDL_WindowFlags.SDL_WINDOW_VULKAN);
+			ptr = SDL.SDL_CreateWindow("Gravity Fire", 50, 50, (int) size.X, (int) size.Y, SDL.SDL_WindowFlags.SDL_WINDOW_VULKAN);
 		}
 
 		public IntPtr GetVulkanSurface(IntPtr vkInstance) {
