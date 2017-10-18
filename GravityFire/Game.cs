@@ -1,8 +1,10 @@
 ﻿namespace GravityFire {
 	using System;
 	using System.Collections.Generic;
+	using System.IO;
 	using System.Linq;
 	using SharpVk;
+	using Buffer = System.Buffer;
 	using Version = SharpVk.Version;
 
 	public class Game {
@@ -23,6 +25,11 @@
 		public Extent2D swapChainExtent;
 		InputHandler input = new InputHandler();
 		ImageView[] swapChainImgViews;
+		RenderPass renderPass;
+		ShaderModule vertShader;
+		ShaderModule fragShader;
+		PipelineLayout pipelineLayout;
+		Pipeline pipeline;
 
 		public Game() {
 			window = new Window(Width, Height);
@@ -41,6 +48,7 @@
 			CreateVKDevice();
 			CreateSwapChain();
 			CreateImageViews();
+			CreateRenderPass();
 		}
 
 		void CreateVKInstance() {
@@ -211,7 +219,7 @@
 				                         };
 			}
 
-			foreach (var format in availableFormats) {
+			foreach (SurfaceFormat format in availableFormats) {
 				if (format.Format == Format.B8G8R8A8UNorm && format.ColorSpace == ColorSpace.SrgbNonlinear) { return format; }
 			}
 
@@ -232,6 +240,162 @@
 			availablePresentModes.Contains(PresentMode.Mailbox)
 				? PresentMode.Mailbox
 				: PresentMode.Fifo;
+
+		void CreateRenderPass() {
+			renderPass = vkDevice.CreateRenderPass(new RenderPassCreateInfo {
+				                                                                Attachments = new[] {
+					                                                                                    new AttachmentDescription {
+						                                                                                                              Format = swapChainFormat,
+						                                                                                                              Samples = SampleCountFlags.SampleCount1,
+						                                                                                                              LoadOp = AttachmentLoadOp.Clear,
+						                                                                                                              StoreOp = AttachmentStoreOp.Store,
+						                                                                                                              StencilLoadOp = AttachmentLoadOp.DontCare,
+						                                                                                                              StencilStoreOp = AttachmentStoreOp.DontCare,
+						                                                                                                              InitialLayout = ImageLayout.Undefined,
+						                                                                                                              FinalLayout = ImageLayout.PresentSource
+					                                                                                                              }
+				                                                                                    },
+				                                                                Subpasses = new[] {
+					                                                                                  new SubpassDescription {
+						                                                                                                         DepthStencilAttachment = new AttachmentReference {
+							                                                                                                                                                          Attachment = Constants.AttachmentUnused
+						                                                                                                                                                          },
+						                                                                                                         PipelineBindPoint = PipelineBindPoint.Graphics,
+						                                                                                                         ColorAttachments = new[] {
+							                                                                                                                                  new AttachmentReference {
+								                                                                                                                                                          Attachment = 0,
+								                                                                                                                                                          Layout = ImageLayout.ColorAttachmentOptimal
+							                                                                                                                                                          }
+						                                                                                                                                  }
+					                                                                                                         }
+				                                                                                  },
+				                                                                Dependencies = new[] {
+					                                                                                     new SubpassDependency {
+						                                                                                                           SourceSubpass = Constants.SubpassExternal,
+						                                                                                                           DestinationSubpass = 0,
+						                                                                                                           SourceStageMask = PipelineStageFlags.BottomOfPipe,
+						                                                                                                           SourceAccessMask = AccessFlags.MemoryRead,
+						                                                                                                           DestinationStageMask = PipelineStageFlags.ColorAttachmentOutput,
+						                                                                                                           DestinationAccessMask = AccessFlags.ColorAttachmentRead | AccessFlags.ColorAttachmentWrite
+					                                                                                                           },
+					                                                                                     new SubpassDependency {
+						                                                                                                           SourceSubpass = 0,
+						                                                                                                           DestinationSubpass = Constants.SubpassExternal,
+						                                                                                                           SourceStageMask = PipelineStageFlags.ColorAttachmentOutput,
+						                                                                                                           SourceAccessMask = AccessFlags.ColorAttachmentRead | AccessFlags.ColorAttachmentWrite,
+						                                                                                                           DestinationStageMask = PipelineStageFlags.BottomOfPipe,
+						                                                                                                           DestinationAccessMask = AccessFlags.MemoryRead
+					                                                                                                           }
+				                                                                                     }
+			                                                                });
+		}
+
+		void CreateShaderModules() {
+			int codeSize;
+			uint[] vertShaderData = LoadShaderData(@".\Shaders\vert.spv", out codeSize);
+			vertShader = vkDevice.CreateShaderModule(new ShaderModuleCreateInfo {
+				                                                                       Code = vertShaderData,
+				                                                                       CodeSize = codeSize
+			                                                                       });
+
+			uint[] fragShaderData = LoadShaderData(@".\Shaders\frag.spv", out codeSize);
+			fragShader = vkDevice.CreateShaderModule(new ShaderModuleCreateInfo {
+				                                                                       Code = fragShaderData,
+				                                                                       CodeSize = codeSize
+			                                                                       });
+		}
+
+		static uint[] LoadShaderData(string filePath, out int codeSize) {
+			byte[] fileBytes = File.ReadAllBytes(filePath);
+			uint[] shaderData = new uint[(int)Math.Ceiling(fileBytes.Length / 4f)];
+
+			Buffer.BlockCopy(fileBytes, 0, shaderData, 0, fileBytes.Length);
+
+			codeSize = fileBytes.Length;
+
+			return shaderData;
+		}
+
+		void CreateGraphicsPipeline() {
+            pipelineLayout = vkDevice.CreatePipelineLayout(new PipelineLayoutCreateInfo());
+
+	        pipeline = vkDevice.CreateGraphicsPipelines(null, new[] {
+		                                                                new GraphicsPipelineCreateInfo {
+			                                                                                               Layout = pipelineLayout,
+			                                                                                               RenderPass = renderPass,
+			                                                                                               Subpass = 0,
+			                                                                                               VertexInputState = new PipelineVertexInputStateCreateInfo(),
+			                                                                                               InputAssemblyState = new PipelineInputAssemblyStateCreateInfo {
+				                                                                                                                                                             PrimitiveRestartEnable = false,
+				                                                                                                                                                             Topology = PrimitiveTopology.TriangleList
+			                                                                                                                                                             },
+			                                                                                               ViewportState = new PipelineViewportStateCreateInfo {
+				                                                                                                                                                   Viewports = new[] {
+					                                                                                                                                                                     new Viewport {
+						                                                                                                                                                                                  X = 0f,
+						                                                                                                                                                                                  Y = 0f,
+						                                                                                                                                                                                  Width = swapChainExtent.Width,
+						                                                                                                                                                                                  Height = swapChainExtent.Height,
+						                                                                                                                                                                                  MaxDepth = 1,
+						                                                                                                                                                                                  MinDepth = 0
+					                                                                                                                                                                                  }
+				                                                                                                                                                                     },
+				                                                                                                                                                   Scissors = new[] {
+					                                                                                                                                                                    new Rect2D {
+						                                                                                                                                                                               Offset = new Offset2D(),
+						                                                                                                                                                                               Extent = swapChainExtent
+					                                                                                                                                                                               }
+				                                                                                                                                                                    }
+			                                                                                                                                                   },
+			                                                                                               RasterizationState = new PipelineRasterizationStateCreateInfo {
+				                                                                                                                                                             DepthClampEnable = false,
+				                                                                                                                                                             RasterizerDiscardEnable = false,
+				                                                                                                                                                             PolygonMode = PolygonMode.Fill,
+				                                                                                                                                                             LineWidth = 1,
+				                                                                                                                                                             CullMode = CullModeFlags.Back,
+				                                                                                                                                                             FrontFace = FrontFace.Clockwise,
+				                                                                                                                                                             DepthBiasEnable = false
+			                                                                                                                                                             },
+			                                                                                               MultisampleState = new PipelineMultisampleStateCreateInfo {
+				                                                                                                                                                         SampleShadingEnable = false,
+				                                                                                                                                                         RasterizationSamples = SampleCountFlags.SampleCount1,
+				                                                                                                                                                         MinSampleShading = 1
+			                                                                                                                                                         },
+			                                                                                               ColorBlendState = new PipelineColorBlendStateCreateInfo {
+				                                                                                                                                                       Attachments = new[] {
+					                                                                                                                                                                           new PipelineColorBlendAttachmentState {
+						                                                                                                                                                                                                                 ColorWriteMask = ColorComponentFlags.R
+						                                                                                                                                                                                                                                  | ColorComponentFlags.G
+						                                                                                                                                                                                                                                  | ColorComponentFlags.B
+						                                                                                                                                                                                                                                  | ColorComponentFlags.A,
+						                                                                                                                                                                                                                 BlendEnable = false,
+						                                                                                                                                                                                                                 SourceColorBlendFactor = BlendFactor.One,
+						                                                                                                                                                                                                                 DestinationColorBlendFactor = BlendFactor.Zero,
+						                                                                                                                                                                                                                 ColorBlendOp = BlendOp.Add,
+						                                                                                                                                                                                                                 SourceAlphaBlendFactor = BlendFactor.One,
+						                                                                                                                                                                                                                 DestinationAlphaBlendFactor = BlendFactor.Zero,
+						                                                                                                                                                                                                                 AlphaBlendOp = BlendOp.Add
+					                                                                                                                                                                                                                 }
+				                                                                                                                                                                           },
+				                                                                                                                                                       LogicOpEnable = false,
+				                                                                                                                                                       LogicOp = LogicOp.Copy,
+				                                                                                                                                                       BlendConstants = new float[] {0, 0, 0, 0}
+			                                                                                                                                                       },
+			                                                                                               Stages = new[] {
+				                                                                                                              new PipelineShaderStageCreateInfo {
+					                                                                                                                                                Stage = ShaderStageFlags.Vertex,
+					                                                                                                                                                Module = vertShader,
+					                                                                                                                                                Name = "main"
+				                                                                                                                                                },
+				                                                                                                              new PipelineShaderStageCreateInfo {
+					                                                                                                                                                Stage = ShaderStageFlags.Fragment,
+					                                                                                                                                                Module = fragShader,
+					                                                                                                                                                Name = "main"
+				                                                                                                                                                }
+			                                                                                                              }
+		                                                                                               }
+	                                                                }).Single();
+        }
 
 		void Clean() {
 			foreach (ImageView view in swapChainImgViews) { view.Destroy(); }
