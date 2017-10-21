@@ -18,7 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SDL2-CS\SDL2-CS.Core.csproj" />
-    <ProjectReference Include="..\Walker\Walker.csproj" />
+    <ProjectReference Include="..\Walker\Walker\Walker.csproj" />
     <Content Include="Libraries\License\*.*">
       <Link>Licenses\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
