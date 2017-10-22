@@ -3,6 +3,7 @@
 	using System.Collections.Generic;
 	using System.IO;
 	using System.Linq;
+	using SDL2;
 	using SharpVk;
 	using Buffer = System.Buffer;
 	using Version = SharpVk.Version;
@@ -30,15 +31,52 @@
 		ShaderModule fragShader;
 		PipelineLayout pipelineLayout;
 		Pipeline pipeline;
+		Framebuffer[] frameBuffers;
+		CommandPool commandPool;
+		CommandBuffer[] commandBuffers;
+		Semaphore imageAvailableSemaphore;
+		Semaphore renderFinishedSemaphore;
 
 		public Game() {
 			window = new Window(Width, Height);
 		}
 
 		public void Run() {
-			InitVulkan();
+			InitSDL();
 			window.Init();
-			while (run) { input.Update(); }
+			InitVulkan();
+			while (run) {
+				input.Update();
+				DrawFrame();
+			}
+			Clean();
+		}
+
+		void DrawFrame() {
+			uint nextImage = swapChain.AcquireNextImage(uint.MaxValue, imageAvailableSemaphore, null);
+
+			graphicsQueue.Submit(new[] {
+				                           new SubmitInfo {
+					                                          CommandBuffers = new[] {commandBuffers[nextImage]},
+					                                          SignalSemaphores = new[] {renderFinishedSemaphore},
+					                                          WaitDestinationStageMask = new[] {PipelineStageFlags.ColorAttachmentOutput},
+					                                          WaitSemaphores = new[] {imageAvailableSemaphore}
+				                                          }
+			                           }, null);
+
+			presentQueue.Present(new PresentInfo {
+				                                     ImageIndices = new[] {nextImage},
+				                                     Results = new Result[1],
+				                                     WaitSemaphores = new[] {renderFinishedSemaphore},
+				                                     Swapchains = new[] {swapChain}
+			                                     });
+		}
+
+		void InitSDL() {
+			int code = SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
+			if (code != 0) {
+				throw new SDLException("SDL_Init code " + code);
+			}
 		}
 
 		void InitVulkan() {
@@ -49,22 +87,23 @@
 			CreateSwapChain();
 			CreateImageViews();
 			CreateRenderPass();
+			CreateShaderModules();
+			CreateGraphicsPipeline();
+			CreateFrameBuffers();
+			CreateCommandPool();
+			CreateCommandBuffers();
+			CreateSemaphores();
 		}
 
 		void CreateVKInstance() {
+			List<string> extensionNames = window.GetVulkanExtensionNames();
 			vkInstance = Instance.Create(new InstanceCreateInfo {
 				                                                    ApplicationInfo = new ApplicationInfo {
-					                                                                                          ApplicationName =
-						                                                                                          "Gravity Fire",
-					                                                                                          ApplicationVersion =
-						                                                                                          new Version(0, 0, 0),
-					                                                                                          ApiVersion =
-						                                                                                          new Version(1, 0, 0)
+					                                                                                          ApplicationName = "Gravity Fire",
+					                                                                                          ApplicationVersion = new Version(0, 0, 0),
+					                                                                                          ApiVersion = new Version(1, 0, 0)
 				                                                                                          },
-				                                                    EnabledExtensionNames = new[] {
-					                                                                                  KhrSurface.ExtensionName,
-					                                                                                  KhrWin32Surface.ExtensionName
-				                                                                                  }
+				                                                    EnabledExtensionNames = extensionNames.ToArray()
 			                                                    });
 		}
 
@@ -85,7 +124,7 @@
 			if (vkPhysDevice is null) { throw new Exception("Couldn't find suitable render device."); }
 		}
 
-		private struct QueueFamilyIndices {
+		struct QueueFamilyIndices {
 			public uint? GraphicsFamily;
 			public uint? PresentFamily;
 
@@ -397,7 +436,68 @@
 	                                                                }).Single();
         }
 
+		void CreateFrameBuffers() {
+			frameBuffers = swapChainImgViews.Select(imageView => vkDevice.CreateFramebuffer(new FramebufferCreateInfo {
+				                                                                                                          RenderPass = renderPass,
+				                                                                                                          Attachments = new[] {imageView},
+				                                                                                                          Layers = 1,
+				                                                                                                          Height = swapChainExtent.Height,
+				                                                                                                          Width = swapChainExtent.Width
+			                                                                                                          })).ToArray();
+		}
+
+		void CreateCommandPool() {
+			QueueFamilyIndices queueFamilies = FindQueueFamilies(vkPhysDevice);
+
+			commandPool = vkDevice.CreateCommandPool(new CommandPoolCreateInfo {
+				                                                                   QueueFamilyIndex = queueFamilies.GraphicsFamily.Value
+			                                                                   });
+		}
+
+		void CreateCommandBuffers() {
+			commandBuffers = vkDevice.AllocateCommandBuffers(new CommandBufferAllocateInfo
+			                                                    {
+				                                                    CommandBufferCount = (uint) frameBuffers.Length,
+				                                                    CommandPool = commandPool,
+				                                                    Level = CommandBufferLevel.Primary
+			                                                    });
+
+			for (int index = 0; index < frameBuffers.Length; index++) {
+				var commandBuffer = commandBuffers[index];
+
+				commandBuffer.Begin(new CommandBufferBeginInfo {
+					                                               Flags = CommandBufferUsageFlags.SimultaneousUse
+				                                               });
+
+				commandBuffer.BeginRenderPass(new RenderPassBeginInfo {
+					                                                      RenderPass = renderPass,
+					                                                      Framebuffer = frameBuffers[index],
+					                                                      RenderArea = new Rect2D {
+						                                                                              Offset = new Offset2D(),
+						                                                                              Extent = swapChainExtent
+					                                                                              },
+					                                                      ClearValues = new ClearValue[] {
+						                                                                                     new ClearColorValue(0f, 0f, 0f, 1f)
+					                                                                                     }
+				                                                      }, SubpassContents.Inline);
+
+				commandBuffer.BindPipeline(PipelineBindPoint.Graphics, pipeline);
+
+				commandBuffer.Draw(3, 1, 0, 0);
+
+				commandBuffer.EndRenderPass();
+
+				commandBuffer.End();
+			}
+		}
+
+		void CreateSemaphores() {
+			imageAvailableSemaphore = vkDevice.CreateSemaphore(new SemaphoreCreateInfo());
+			renderFinishedSemaphore = vkDevice.CreateSemaphore(new SemaphoreCreateInfo());
+		}
+
 		void Clean() {
+			foreach (Framebuffer buffer in frameBuffers) { buffer.Destroy(); }
 			foreach (ImageView view in swapChainImgViews) { view.Destroy(); }
 			vkSurface.Destroy();
 			vkInstance.Destroy();
