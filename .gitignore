@@ -2,6 +2,7 @@
 .idea/
 *.*.iml
 */obj/*
+*/bin/*
 
 #Visual Studio
 .vs/*
