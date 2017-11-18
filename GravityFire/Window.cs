@@ -7,7 +7,7 @@
 	using SDL2;
 	using Walker.Data.Geometry.Generic.Plane;
 
-	public partial class Window {
+	public class Window {
 		Vector2<uint> size;
 		public IntPtr ptr;
 
